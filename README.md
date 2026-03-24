@@ -155,26 +155,53 @@ python qwen3_vl.py --task caption --device GPU --skip-conversion --benchmark 5 -
 
 ## Sample Outputs
 
-**Caption** (demo.jpeg — woman with dog on beach):
+### demo.jpeg — Woman with Dog on Beach
+
+![demo.jpeg](demo.jpeg)
+
+**Caption:**
 > This is a heartwarming and serene photograph capturing a tender moment between a young woman and her golden Labrador Retriever on a sandy beach at sunset.
 
 **VQA** — "How many people and animals are in this photo?":
 > There is **one person** in the photo: a woman sitting on the sand. There is **one animal** in the photo: a yellow Labrador Retriever.
 
-**Video** — "What do you see in this video?" (demo_video.mp4):
-> A woman sits on a sandy beach at sunset, smiling as she interacts with a golden retriever. The dog, wearing a harness, sits upright and reaches its paw toward the woman, who holds a small treat in her hand.
+---
 
-**Video** — "Describe in detail what is happening in this video." (計程車繁忙都市街口短影片.mp4 — busy city intersection):
-> The video captures the bustling energy of Times Square in New York City. The scene opens with a yellow taxi cab prominently positioned in the foreground, its iconic color contrasting with the towering skyscrapers and bright billboards that dominate the background. As the camera pans to the right, the focus shifts to the dense crowd of pedestrians crossing the street. People of all ages and backgrounds are seen walking with purpose. In the background, a red double-decker bus stands out against the backdrop of towering glass buildings.
+### 吃牛肉麵照片.png — Beef Noodle Soup
 
-**Caption** (吃牛肉麵照片.png — person eating beef noodle soup):
+![吃牛肉麵照片.png](吃牛肉麵照片.png)
+
+**Caption:**
 > This is a vibrant, candid photograph capturing a joyful moment of a young man enjoying a meal in a bustling, traditional Asian noodle shop. He is actively eating, holding chopsticks in his right hand, lifting a large, steaming portion of noodles and a piece of beef towards his mouth. The soup contains thick, yellow noodles, tender-looking beef slices, chopped green onions, and a garnish of fresh cilantro and bok choy.
 
-**VQA** — "What food is this person eating? What ingredients can you identify?" (吃牛肉麵照片.png):
+**VQA** — "What food is this person eating? What ingredients can you identify?":
 > The person is eating a bowl of **beef noodle soup**. Identifiable ingredients: thick yellow wheat noodles, large tender chunks of braised beef, rich dark broth, bok choy, fresh cilantro, chopped green onions, red chili sauce, and pickled greens.
 
-**Video** — "Describe in detail what is happening in this video." (牛肉麵影片.mp4 — eating ramen):
+---
+
+### Video Samples
+
+**demo_video.mp4** — "What do you see in this video?":
+> A woman sits on a sandy beach at sunset, smiling as she interacts with a golden retriever. The dog, wearing a harness, sits upright and reaches its paw toward the woman, who holds a small treat in her hand.
+
+**計程車繁忙都市街口短影片.mp4** — "Describe in detail what is happening in this video." (busy city intersection):
+> The video captures the bustling energy of Times Square in New York City. The scene opens with a yellow taxi cab prominently positioned in the foreground, its iconic color contrasting with the towering skyscrapers and bright billboards that dominate the background. As the camera pans to the right, the focus shifts to the dense crowd of pedestrians crossing the street. People of all ages and backgrounds are seen walking with purpose. In the background, a red double-decker bus stands out against the backdrop of towering glass buildings.
+
+**牛肉麵影片.mp4** — "Describe in detail what is happening in this video." (eating ramen):
 > A young woman is enjoying a steaming bowl of ramen in a warmly lit, cozy restaurant. She holds the large white bowl with one hand, using chopsticks to lift a generous portion of noodles and slices of tender beef toward her mouth. The ramen is rich and aromatic, with visible toppings including chopped green onions, slices of beef, and a flavorful broth that steams gently. The background is softly blurred with warm, glowing lights creating a bokeh effect.
+
+## Multilingual Support (繁體中文)
+
+Qwen3-VL natively supports multilingual output including **Traditional Chinese**. Simply ask your question in Chinese or add an instruction like `請用繁體中文回答`.
+
+### Example — Traditional Chinese Response
+
+```bash
+python qwen3_vl.py --task caption --image "吃牛肉麵照片.png" --question "請用繁體中文描述這張圖片。" --device GPU --skip-conversion
+```
+
+**Output:**
+> 這張圖片捕捉了一位年輕男子在熱鬧的中式麵館裡享用一碗熱騰騰牛肉麵的歡樂瞬間。他身穿深藍色T恤，正用筷子夾起一大口麵條與牛肉，同時用湯匙舀著湯頭，臉上洋溢著開心滿足的笑容，眼睛因笑容而眯起，顯得極度享受這頓美食。他面前的木桌上擺著一碗湯頭濃郁、配料豐富的牛肉麵，碗裡有麵條、大塊牛肉、翠綠的香菜與青菜，熱氣騰騰，令人食指大動。背景是典型的台灣或東南亞街頭小吃店或老字號麵館，木製桌椅、熱鬧的用餐客人、廚房的煙霧，以及牆上貼著的菜單或海報，營造出濃厚的庶民美食氛圍。
 
 ## Dependencies
 
