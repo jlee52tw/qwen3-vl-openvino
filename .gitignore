@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+*venv*/
+
+# Models
+model/
+*.bin
+*.onnx
+*.xml
+*.safetensors
+
+# Images/Videos (keep demo assets)
+output/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Logs
+*.log
