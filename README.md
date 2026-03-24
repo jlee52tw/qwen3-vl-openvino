@@ -55,6 +55,17 @@ Based on the [OpenVINO Notebooks qwen3-vl](https://github.com/openvinotoolkit/op
 | Input Tokens | 632 |
 | Output Tokens | 100 |
 
+### Video Understanding — Real-World Video (計程車繁忙都市街口短影片.mp4, 8.4 MB, 100 tokens)
+
+| Metric | Value |
+|---|---|
+| Median Generate Time | 9.573s |
+| Mean Generate Time | 9.380s |
+| Median Tokens/sec | 10.4 |
+| Input Tokens | 1186 |
+| Output Tokens | 100 |
+| Min/Max Generate | 8.917s / 9.651s |
+
 ## Setup
 
 ```powershell
@@ -128,8 +139,11 @@ python qwen3_vl.py --task caption --device GPU --skip-conversion --benchmark 5 -
 **VQA** — "How many people and animals are in this photo?":
 > There is **one person** in the photo: a woman sitting on the sand. There is **one animal** in the photo: a yellow Labrador Retriever.
 
-**Video** — "What do you see in this video?":
+**Video** — "What do you see in this video?" (demo_video.mp4):
 > A woman sits on a sandy beach at sunset, smiling as she interacts with a golden retriever. The dog, wearing a harness, sits upright and reaches its paw toward the woman, who holds a small treat in her hand.
+
+**Video** — "Describe in detail what is happening in this video." (計程車繁忙都市街口短影片.mp4 — busy city intersection):
+> The video captures the bustling energy of Times Square in New York City. The scene opens with a yellow taxi cab prominently positioned in the foreground, its iconic color contrasting with the towering skyscrapers and bright billboards that dominate the background. As the camera pans to the right, the focus shifts to the dense crowd of pedestrians crossing the street. People of all ages and backgrounds are seen walking with purpose. In the background, a red double-decker bus stands out against the backdrop of towering glass buildings.
 
 ## Dependencies
 
