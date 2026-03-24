@@ -66,6 +66,28 @@ Based on the [OpenVINO Notebooks qwen3-vl](https://github.com/openvinotoolkit/op
 | Output Tokens | 100 |
 | Min/Max Generate | 8.917s / 9.651s |
 
+### Image Captioning — Real-World Photo (吃牛肉麵照片.png, 7.9 MB, 100 tokens)
+
+| Metric | Value |
+|---|---|
+| Median Generate Time | 8.671s |
+| Mean Generate Time | 8.511s |
+| Median Tokens/sec | 11.5 |
+| Input Tokens | 980 |
+| Output Tokens | 100 |
+| Min/Max Generate | 8.033s / 8.830s |
+
+### Video Understanding — Real-World Video (牛肉麵影片.mp4, 3.6 MB, 100 tokens)
+
+| Metric | Value |
+|---|---|
+| Median Generate Time | 4.992s |
+| Mean Generate Time | 5.453s |
+| Median Tokens/sec | 6.4 |
+| Input Tokens | 1186 |
+| Output Tokens | 29 (median) |
+| Min/Max Generate | 4.071s / 7.295s |
+
 ## Setup
 
 ```powershell
@@ -144,6 +166,15 @@ python qwen3_vl.py --task caption --device GPU --skip-conversion --benchmark 5 -
 
 **Video** — "Describe in detail what is happening in this video." (計程車繁忙都市街口短影片.mp4 — busy city intersection):
 > The video captures the bustling energy of Times Square in New York City. The scene opens with a yellow taxi cab prominently positioned in the foreground, its iconic color contrasting with the towering skyscrapers and bright billboards that dominate the background. As the camera pans to the right, the focus shifts to the dense crowd of pedestrians crossing the street. People of all ages and backgrounds are seen walking with purpose. In the background, a red double-decker bus stands out against the backdrop of towering glass buildings.
+
+**Caption** (吃牛肉麵照片.png — person eating beef noodle soup):
+> This is a vibrant, candid photograph capturing a joyful moment of a young man enjoying a meal in a bustling, traditional Asian noodle shop. He is actively eating, holding chopsticks in his right hand, lifting a large, steaming portion of noodles and a piece of beef towards his mouth. The soup contains thick, yellow noodles, tender-looking beef slices, chopped green onions, and a garnish of fresh cilantro and bok choy.
+
+**VQA** — "What food is this person eating? What ingredients can you identify?" (吃牛肉麵照片.png):
+> The person is eating a bowl of **beef noodle soup**. Identifiable ingredients: thick yellow wheat noodles, large tender chunks of braised beef, rich dark broth, bok choy, fresh cilantro, chopped green onions, red chili sauce, and pickled greens.
+
+**Video** — "Describe in detail what is happening in this video." (牛肉麵影片.mp4 — eating ramen):
+> A young woman is enjoying a steaming bowl of ramen in a warmly lit, cozy restaurant. She holds the large white bowl with one hand, using chopsticks to lift a generous portion of noodles and slices of tender beef toward her mouth. The ramen is rich and aromatic, with visible toppings including chopped green onions, slices of beef, and a flavorful broth that steams gently. The background is softly blurred with warm, glowing lights creating a bokeh effect.
 
 ## Dependencies
 
