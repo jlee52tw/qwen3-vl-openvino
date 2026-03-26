@@ -36,8 +36,24 @@ from PIL import Image
 
 
 # ─── Constants ────────────────────────────────────────────────────────────────
-DEFAULT_MODEL_ID = "Qwen/Qwen3-VL-8B-Instruct"
-DEFAULT_MODEL_DIR = r"C:\working\models\Qwen3-VL-8B-Instruct\INT4"
+MODEL_CONFIGS = {
+    "2b": {
+        "model_id": "Qwen/Qwen3-VL-2B-Instruct",
+        "model_dir": r"C:\working\models\Qwen3-VL-2B-Instruct\INT4",
+    },
+    "4b": {
+        "model_id": "Qwen/Qwen3-VL-4B-Instruct",
+        "model_dir": r"C:\working\models\Qwen3-VL-4B-Instruct\INT4",
+    },
+    "8b": {
+        "model_id": "Qwen/Qwen3-VL-8B-Instruct",
+        "model_dir": r"C:\working\models\Qwen3-VL-8B-Instruct\INT4",
+    },
+}
+
+DEFAULT_MODEL_SIZE = "8b"
+DEFAULT_MODEL_ID = MODEL_CONFIGS[DEFAULT_MODEL_SIZE]["model_id"]
+DEFAULT_MODEL_DIR = MODEL_CONFIGS[DEFAULT_MODEL_SIZE]["model_dir"]
 DEFAULT_DEVICE = "GPU"
 DEFAULT_MAX_TOKENS = 200
 
@@ -59,24 +75,23 @@ def convert_model(model_id: str, output_dir: str, weight_format: str = "int4",
 
     output_path.mkdir(parents=True, exist_ok=True)
 
-    # Find optimum-cli executable in venv
-    venv_dir = os.environ.get("VIRTUAL_ENV")
-    if venv_dir:
-        optimum_cli = Path(venv_dir) / "Scripts" / "optimum-cli.exe"
-        if not optimum_cli.exists():
-            optimum_cli = Path(venv_dir) / "Scripts" / "optimum-cli"
-    else:
-        optimum_cli = Path(sys.executable).parent / "optimum-cli.exe"
+    # Find optimum-cli executable – try venv Scripts, then next to sys.executable
+    optimum_cli = None
+    candidates = [
+        Path(os.environ.get("VIRTUAL_ENV", "")) / "Scripts" / "optimum-cli.exe",
+        Path(sys.executable).parent / "optimum-cli.exe",
+        Path(sys.executable).parent / "optimum-cli",
+    ]
+    for c in candidates:
+        if c.exists():
+            optimum_cli = c
+            break
 
-    if not optimum_cli.exists():
-        # Fallback: use python -m optimum.exporters.openvino
-        optimum_cli = None
-
-    cmd = []
     if optimum_cli:
         cmd = [str(optimum_cli)]
     else:
-        cmd = [sys.executable, "-m", "optimum.cli"]
+        # Fallback: invoke via python -m
+        cmd = [sys.executable, "-m", "optimum.exporters.openvino"]
 
     cmd += [
         "export", "openvino",
@@ -324,6 +339,223 @@ def run_benchmark(model, processor, args, iterations: int = 5) -> None:
     print(f"\n  Sample answer: {results[-1]['answer'][:200]}...")
 
 
+# ─── GPU Memory ───────────────────────────────────────────────────────────────
+def get_gpu_memory_mb() -> float:
+    """Get Intel GPU shared/dedicated memory usage in MB via openvino properties."""
+    try:
+        import openvino as ov
+        core = ov.Core()
+        props = core.get_property("GPU", "GPU_MEMORY_STATISTICS")
+        # props is a dict-like with device memory usage
+        total = sum(v for v in props.values() if isinstance(v, (int, float)))
+        return total / (1024 * 1024)
+    except Exception:
+        return -1.0
+
+
+# ─── Compare Mode ─────────────────────────────────────────────────────────────
+def run_comparison(args):
+    """Compare all available models on the same image/video inputs."""
+    import gc
+
+    # Determine which models to compare
+    requested_sizes = None
+    if hasattr(args, 'compare_sizes') and args.compare_sizes:
+        requested_sizes = [s.strip().lower() for s in args.compare_sizes.split(',')]
+
+    sizes_to_test = []
+    for size, cfg in MODEL_CONFIGS.items():
+        if requested_sizes and size not in requested_sizes:
+            continue
+        model_path = Path(cfg["model_dir"])
+        if model_path.exists() and any(model_path.glob("*.xml")):
+            sizes_to_test.append(size)
+        else:
+            print(f"[WARN] Model {size.upper()} not found at {cfg['model_dir']}, skipping.")
+
+    if not sizes_to_test:
+        print("[ERROR] No converted models found. Run conversion first.")
+        sys.exit(1)
+
+    print(f"\n{'='*80}")
+    print(f"  MODEL COMPARISON: {', '.join(s.upper() for s in sizes_to_test)}")
+    print(f"  Device: {args.device} | Max tokens: {args.max_tokens}")
+    print(f"{'='*80}")
+
+    # Define test cases
+    test_cases = []
+
+    # Image tests
+    image_files = list(Path(".").glob("*.jpeg")) + list(Path(".").glob("*.jpg")) + list(Path(".").glob("*.png"))
+    for img in image_files:
+        test_cases.append({
+            "type": "image",
+            "path": str(img),
+            "questions": [
+                ("caption", "Describe this image in detail."),
+                ("ocr", "Read and transcribe all visible text in this image. If there is no text, say 'No text found'."),
+            ]
+        })
+
+    # Video tests
+    video_files = list(Path(".").glob("*.mp4"))
+    for vid in video_files:
+        test_cases.append({
+            "type": "video",
+            "path": str(vid),
+            "questions": [
+                ("video_understanding", "Describe what happens in this video step by step."),
+            ]
+        })
+
+    if not test_cases:
+        print("[ERROR] No test files (.jpg/.jpeg/.png/.mp4) found in current directory.")
+        sys.exit(1)
+
+    print(f"\n  Test files: {len(test_cases)}")
+    for tc in test_cases:
+        print(f"    [{tc['type']}] {tc['path']}")
+
+    all_results = {}  # {model_size: [{...}, ...]}
+
+    for size in sizes_to_test:
+        cfg = MODEL_CONFIGS[size]
+        all_results[size] = []
+
+        print(f"\n{'#'*80}")
+        print(f"  Loading model: Qwen3-VL-{size.upper()}-Instruct (INT4)")
+        print(f"{'#'*80}")
+
+        # Get model dir size
+        model_path = Path(cfg["model_dir"])
+        model_size_gb = sum(f.stat().st_size for f in model_path.rglob("*") if f.is_file()) / (1024**3)
+        print(f"  Model size on disk: {model_size_gb:.2f} GB")
+
+        model, processor, load_time = load_model(cfg["model_dir"], args.device)
+        oom_abort = False
+
+        for tc in test_cases:
+            for task_name, question in tc["questions"]:
+                print(f"\n  --- {size.upper()} | {task_name} | {tc['path']} ---")
+                print(f"  Q: {question}")
+
+                try:
+                    if tc["type"] == "image":
+                        result = run_image_inference(
+                            model, processor, tc["path"], question,
+                            max_tokens=args.max_tokens, stream=False
+                        )
+                    else:
+                        result = run_video_inference(
+                            model, processor, tc["path"], question,
+                            max_tokens=args.max_tokens, stream=False
+                        )
+
+                    result["model_size"] = size
+                    result["model_size_gb"] = round(model_size_gb, 2)
+                    result["load_time_s"] = round(load_time, 1)
+                    result["task_name"] = task_name
+                    all_results[size].append(result)
+
+                    answer_preview = result["answer"][:300]
+                    print(f"  A: {answer_preview}")
+                    print(f"  >> {result['output_tokens']} tokens | "
+                          f"{result['generate_time_s']:.2f}s | "
+                          f"{result['tokens_per_sec']:.1f} tok/s")
+
+                except Exception as e:
+                    err_str = str(e)
+                    print(f"  [ERROR] {err_str[:200]}")
+                    all_results[size].append({
+                        "model_size": size, "task_name": task_name,
+                        "error": err_str, "path": tc["path"],
+                    })
+                    # If GPU OOM, abort remaining tests for this model
+                    if "CL_OUT_OF_RESOURCES" in err_str or "out of memory" in err_str.lower():
+                        print(f"  [WARN] GPU OOM detected — skipping remaining tests for {size.upper()}")
+                        oom_abort = True
+                        break
+            if oom_abort:
+                break
+
+        # Free model memory
+        try:
+            del model, processor
+            gc.collect()
+        except Exception:
+            pass
+        print(f"\n  [INFO] Model {size.upper()} unloaded.")
+
+    # ── Print comparison table ──
+    print(f"\n\n{'='*100}")
+    print(f"  COMPARISON RESULTS")
+    print(f"{'='*100}")
+
+    # Header
+    print(f"\n{'Model':<8} {'Task':<22} {'File':<35} {'Tokens':<8} {'Time(s)':<10} {'Tok/s':<8} {'Load(s)':<8} {'Size(GB)':<9}")
+    print("-" * 108)
+
+    for size in sizes_to_test:
+        for r in all_results[size]:
+            if "error" in r:
+                fname = Path(r.get("path", "?")).name
+                print(f"{size.upper():<8} {r['task_name']:<22} {fname:<35} {'ERROR':<8}")
+                continue
+            fname = Path(r.get("image", r.get("video", "?"))).name
+            print(f"{size.upper():<8} {r['task_name']:<22} {fname:<35} "
+                  f"{r['output_tokens']:<8} {r['generate_time_s']:<10.2f} "
+                  f"{r['tokens_per_sec']:<8.1f} {r['load_time_s']:<8.1f} "
+                  f"{r['model_size_gb']:<9.2f}")
+
+    # Per-model summary
+    print(f"\n{'='*100}")
+    print(f"  PER-MODEL SUMMARY")
+    print(f"{'='*100}")
+    print(f"\n{'Model':<8} {'Avg Tok/s':<12} {'Avg Time(s)':<14} {'Avg Tokens':<12} {'Load(s)':<10} {'Size(GB)':<10}")
+    print("-" * 66)
+
+    for size in sizes_to_test:
+        valid = [r for r in all_results[size] if "error" not in r]
+        if not valid:
+            print(f"{size.upper():<8} {'N/A'}")
+            continue
+        avg_tps = np.mean([r["tokens_per_sec"] for r in valid])
+        avg_time = np.mean([r["generate_time_s"] for r in valid])
+        avg_tokens = np.mean([r["output_tokens"] for r in valid])
+        load_t = valid[0]["load_time_s"]
+        disk_gb = valid[0]["model_size_gb"]
+        print(f"{size.upper():<8} {avg_tps:<12.1f} {avg_time:<14.2f} {avg_tokens:<12.0f} {load_t:<10.1f} {disk_gb:<10.2f}")
+
+    print(f"\n{'='*100}")
+
+    # Print answers side by side for each test case
+    print(f"\n\n{'='*100}")
+    print(f"  OUTPUT QUALITY COMPARISON")
+    print(f"{'='*100}")
+
+    for tc in test_cases:
+        for task_name, question in tc["questions"]:
+            fname = Path(tc["path"]).name
+            print(f"\n{'─'*100}")
+            print(f"  [{task_name}] {fname}")
+            print(f"  Q: {question}")
+            print(f"{'─'*100}")
+
+            for size in sizes_to_test:
+                matching = [r for r in all_results[size]
+                           if r.get("task_name") == task_name
+                           and "error" not in r
+                           and Path(r.get("image", r.get("video", ""))).name == fname]
+                if matching:
+                    r = matching[0]
+                    print(f"\n  [{size.upper()}] ({r['output_tokens']} tokens, {r['tokens_per_sec']:.1f} tok/s)")
+                    print(f"  {r['answer'][:500]}")
+                else:
+                    print(f"\n  [{size.upper()}] SKIPPED/ERROR")
+
+    print(f"\n{'='*100}")
+
+
 # ─── Main ─────────────────────────────────────────────────────────────────────
 def main():
     parser = argparse.ArgumentParser(
@@ -358,8 +590,26 @@ def main():
                         help="Run N benchmark iterations")
     parser.add_argument("--no-stream", action="store_true",
                         help="Disable streaming output")
+    parser.add_argument("--model-size", type=str, default=None,
+                        choices=["2b", "4b", "8b"],
+                        help="Model size shortcut (overrides --model-id and --model-dir)")
+    parser.add_argument("--compare", action="store_true",
+                        help="Compare all available models (2B, 4B, 8B) on the same input")
+    parser.add_argument("--compare-sizes", type=str, default=None,
+                        help="Comma-separated model sizes to compare, e.g. '2b,4b' (default: all)")
 
     args = parser.parse_args()
+
+    # ── Resolve model-size shortcut ──
+    if args.model_size:
+        cfg = MODEL_CONFIGS[args.model_size]
+        args.model_id = cfg["model_id"]
+        args.model_dir = cfg["model_dir"]
+
+    # ── Compare mode ──
+    if args.compare:
+        run_comparison(args)
+        return
 
     # ── Step 1: Convert model ──
     if not args.skip_conversion:

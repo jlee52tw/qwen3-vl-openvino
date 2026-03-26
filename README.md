@@ -1,7 +1,7 @@
 # Qwen3-VL OpenVINO
 
-Visual-language assistant using **Qwen3-VL-8B-Instruct** with OpenVINO acceleration.  
-Supports image captioning, visual Q&A, and video understanding.
+Visual-language assistant using **Qwen3-VL** (2B / 4B / 8B) with OpenVINO acceleration.  
+Supports image captioning, visual Q&A, video understanding, and multi-model comparison.
 
 Based on the [OpenVINO Notebooks qwen3-vl](https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/qwen3-vl) example.
 
@@ -10,83 +10,64 @@ Based on the [OpenVINO Notebooks qwen3-vl](https://github.com/openvinotoolkit/op
 - **Image Captioning** — Describe any image in natural language
 - **Visual Q&A** — Ask questions about image contents
 - **Video Understanding** — Analyze and describe video content
-- **INT4 Quantization** — 5.71 GB model (from ~17 GB FP16) for efficient inference
+- **OCR** — Read and transcribe text from images
+- **Multi-Model Comparison** — Compare 2B, 4B, 8B models side by side
+- **INT4 Quantization** — Efficient inference with minimal quality loss
 - **GPU Accelerated** — Runs on Intel integrated GPU via OpenVINO
 
-## Model
+## Supported Models
 
-| Property | Value |
-|---|---|
-| Model | [Qwen/Qwen3-VL-8B-Instruct](https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct) |
-| Architecture | Qwen3-VL (Vision-Language, 8B params) |
-| Weight Format | INT4 (group-size 128, ratio 0.8) |
-| Model Size | 5.71 GB |
-| Framework | OpenVINO 2026.0 + optimum-intel 1.27.0.dev0 |
+| Model | Parameters | INT4 Size | Load Time | Avg Tok/s (GPU) |
+|---|---|---|---|---|
+| [Qwen/Qwen3-VL-2B-Instruct](https://huggingface.co/Qwen/Qwen3-VL-2B-Instruct) | 2B | 3.60 GB | 5.4s | **19.9** |
+| [Qwen/Qwen3-VL-4B-Instruct](https://huggingface.co/Qwen/Qwen3-VL-4B-Instruct) | 4B | 6.48 GB | 7.0s | **14.2** |
+| [Qwen/Qwen3-VL-8B-Instruct](https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct) | 8B | 5.71 GB | 5.8s | **13.1** |
 
-## GPU Benchmark Results (Intel Core Ultra iGPU)
+All models: INT4 weight format (group-size 128, ratio 0.8) · OpenVINO 2026.0 · optimum-intel 1.27.0.dev0
 
-### Image Captioning (demo.jpeg 2048×1365, 100 tokens)
+## Multi-Model Comparison (Intel Core Ultra iGPU, 300 max tokens)
 
-| Metric | Value |
-|---|---|
-| Median Generate Time | 8.777s |
-| Mean Generate Time | 8.578s |
-| Median Tokens/sec | 11.4 |
-| Input Tokens | 964 |
-| Output Tokens | 100 |
+### Performance Summary
 
-### Visual Q&A (demo.jpeg 2048×1365, 50 tokens)
+| Model | Avg Tok/s | Avg Time(s) | Avg Tokens | Load Time | Disk Size |
+|---|---|---|---|---|---|
+| **2B** | **19.9** | 6.98 | 176 | 5.4s | 3.60 GB |
+| **4B** | 14.2 | 10.53 | 191 | 7.0s | 6.48 GB |
+| **8B** | 13.1–13.4 | 22.4–22.9 | 300 | 5.8s | 5.71 GB |
 
-| Metric | Value |
-|---|---|
-| Median Generate Time | 5.639s |
-| Mean Generate Time | 5.466s |
-| Median Tokens/sec | 8.9 |
-| Input Tokens | 966 |
-| Output Tokens | 50 |
+> **Note:** 8B tested individually per image/video (GPU memory limits prevent sequential multi-inference in one session).
 
-### Video Understanding (demo_video.mp4 640×480 3s, 100 tokens)
+### Detailed Results — Image Captioning
 
-| Metric | Value |
-|---|---|
-| Median Generate Time | 7.167s |
-| Mean Generate Time | 7.426s |
-| Median Tokens/sec | 13.9 |
-| Input Tokens | 632 |
-| Output Tokens | 100 |
+| Model | File | Tokens | Time(s) | Tok/s |
+|---|---|---|---|---|
+| 2B | demo.jpeg | 300 | 10.40 | 28.8 |
+| 4B | demo.jpeg | 300 | 15.32 | 19.6 |
+| 8B | demo.jpeg | 300 | 22.40 | 13.4 |
+| 2B | 吃牛肉麵照片.png | 300 | 10.70 | 28.0 |
+| 4B | 吃牛肉麵照片.png | 300 | 15.54 | 19.3 |
+| 8B | 吃牛肉麵照片.png | 300 | 22.88 | 13.1 |
 
-### Video Understanding — Real-World Video (計程車繁忙都市街口短影片.mp4, 8.4 MB, 100 tokens)
+### Detailed Results — Video Understanding
 
-| Metric | Value |
-|---|---|
-| Median Generate Time | 9.573s |
-| Mean Generate Time | 9.380s |
-| Median Tokens/sec | 10.4 |
-| Input Tokens | 1186 |
-| Output Tokens | 100 |
-| Min/Max Generate | 8.917s / 9.651s |
+| Model | File | Tokens | Time(s) | Tok/s |
+|---|---|---|---|---|
+| 2B | demo_video.mp4 | 135 | 4.97 | 27.2 |
+| 4B | demo_video.mp4 | 300 | 14.25 | 21.1 |
+| 8B | demo_video.mp4 | 122 | 9.55 | 12.8 |
+| 2B | 牛肉麵影片.mp4 | 187 | 7.98 | 23.4 |
+| 4B | 牛肉麵影片.mp4 | 203 | 11.60 | 17.5 |
+| 2B | 計程車繁忙都市街口短影片.mp4 | 300 | 10.89 | 27.6 |
+| 4B | 計程車繁忙都市街口短影片.mp4 | 224 | 12.33 | 18.2 |
 
-### Image Captioning — Real-World Photo (吃牛肉麵照片.png, 7.9 MB, 100 tokens)
+### Key Findings
 
-| Metric | Value |
-|---|---|
-| Median Generate Time | 8.671s |
-| Mean Generate Time | 8.511s |
-| Median Tokens/sec | 11.5 |
-| Input Tokens | 980 |
-| Output Tokens | 100 |
-| Min/Max Generate | 8.033s / 8.830s |
-
-### Video Understanding — Real-World Video (牛肉麵影片.mp4, 3.6 MB, 100 tokens)
-
-| Metric | Value |
-|---|---|
-| Median Generate Time | 4.992s |
-| Mean Generate Time | 5.453s |
-| Median Tokens/sec | 6.4 |
-| Input Tokens | 1186 |
-| Output Tokens | 29 (median) |
-| Min/Max Generate | 4.071s / 7.295s |
+1. **2B is fastest** — ~2× throughput vs 8B (19.9 vs 13.1 tok/s average), great for latency-sensitive use cases
+2. **4B is the sweet spot** — Better output quality than 2B with reasonable speed (14.2 tok/s)
+3. **8B has highest quality** — Most detailed and structured descriptions, but slowest and hits GPU memory limits with sequential inference
+4. **All models handle OCR** — Correctly identify "no text" in images without text; larger models give more nuanced OCR
+5. **Video understanding works across all sizes** — 2B gives concise summaries; 4B and 8B provide step-by-step narratives
+6. **GPU memory constraint** — 8B requires fresh model load per inference on Intel iGPU; 2B and 4B can run many inferences sequentially
 
 ## Setup
 
@@ -106,15 +87,22 @@ pip install git+https://github.com/huggingface/optimum-intel.git
 ### Convert Model (one-time)
 
 ```bash
+# Convert default 8B model
 python qwen3_vl.py --convert-only
+
+# Convert specific model size
+python qwen3_vl.py --model-size 2b --convert-only
+python qwen3_vl.py --model-size 4b --convert-only
+python qwen3_vl.py --model-size 8b --convert-only
 ```
 
-Converts `Qwen/Qwen3-VL-8B-Instruct` to INT4 OpenVINO IR at `C:\working\models\Qwen3-VL-8B-Instruct\INT4`.
+Converts to INT4 OpenVINO IR at `C:\working\models\Qwen3-VL-{size}-Instruct\INT4`.
 
 ### Image Captioning
 
 ```bash
 python qwen3_vl.py --task caption --image photo.jpg --device GPU --skip-conversion
+python qwen3_vl.py --model-size 2b --task caption --image photo.jpg --device GPU --skip-conversion
 ```
 
 ### Visual Q&A
@@ -127,6 +115,16 @@ python qwen3_vl.py --task vqa --image photo.jpg --question "What color is the ca
 
 ```bash
 python qwen3_vl.py --task video --video clip.mp4 --question "What happens in this video?" --device GPU --skip-conversion
+```
+
+### Multi-Model Comparison
+
+```bash
+# Compare all available models
+python qwen3_vl.py --compare --device GPU --max-tokens 300
+
+# Compare specific sizes
+python qwen3_vl.py --compare --compare-sizes 2b,4b --device GPU --max-tokens 300
 ```
 
 ### Benchmark
@@ -144,6 +142,7 @@ python qwen3_vl.py --task caption --device GPU --skip-conversion --benchmark 5 -
 | `--video` | — | Input video path (required for video task) |
 | `--question` | auto | Question text |
 | `--device` | `GPU` | Inference device: `GPU`, `CPU`, `AUTO` |
+| `--model-size` | — | Model size shortcut: `2b`, `4b`, `8b` |
 | `--model-id` | `Qwen/Qwen3-VL-8B-Instruct` | HuggingFace model ID |
 | `--model-dir` | `C:\working\models\Qwen3-VL-8B-Instruct\INT4` | OpenVINO model directory |
 | `--weight-format` | `int4` | Weight format: `fp16`, `int8`, `int4` |
@@ -152,6 +151,8 @@ python qwen3_vl.py --task caption --device GPU --skip-conversion --benchmark 5 -
 | `--skip-conversion` | — | Skip conversion step |
 | `--benchmark N` | — | Run N benchmark iterations |
 | `--no-stream` | — | Disable streaming output |
+| `--compare` | — | Compare all available models |
+| `--compare-sizes` | all | Comma-separated sizes to compare, e.g. `2b,4b` |
 
 ## Sample Outputs
 
